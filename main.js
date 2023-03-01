@@ -41,22 +41,11 @@ function scrapeData() {
                 }
             });
 
-            const server = net.createServer({ timeout: 5000 });
-
-            const PORT = 8080;
-            server.on('error', (error) => {
-                console.error(`Server error happened: ${error.message}`);
-                setTimeout(scrapeData, 5000);
-            });
-
-            server.on('listening', () => {
-                console.log(`Server is listening on port ${PORT}`);
-            });
+            const server = net.createServer();
+            const PORT = 8081;
 
             server.on('connection', handleConnection);
-
             server.listen(PORT, () => console.log(`Server is listening on port ${PORT}`));
-
 
             function handleConnection(socket) {
                 const files = fs.readdirSync(dir).sort((a, b) => {
@@ -76,13 +65,9 @@ function scrapeData() {
                 socket.on('error', (error) => {
                     console.error(`Socket error happened: ${error.message}`);
                 });
-
             }
         });
-    }).on('error', (error) => {
-        console.error(`Error happened: ${error.message}`);
-        setTimeout(scrapeData, 5000);
-    });
+    })
 }
 
 scrapeData();
