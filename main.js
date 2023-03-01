@@ -1,7 +1,7 @@
 const https = require('https');
 const cheerio = require('cheerio');
 const fs = require('fs');
-
+const net = require('net');
 const url = 'https://www.bbc.com/ukrainian';
 let counter = 1;
 
@@ -14,32 +14,75 @@ if (!fs.existsSync(dir)) {
     });
 }
 
-https.get(url, (response) => {
-    let data = '';
+function scrapeData() {
+    https.get(url, (response) => {
+        let data = '';
 
-    response.on('data', (chunk) => {
-        data += chunk;
-    });
+        response.on('data', (chunk) => {
+            data += chunk;
+        });
 
-    response.on('end', () => {
-        const $ = cheerio.load(data);
-        $('p:not(.bbc-1e1hq0), span').each((i, elem) => {
-            const text = $(elem).text();
-            const excluded = ['BBC News', '©', 'Подкасти', 'Фотогалереї', 'Поточна сторінка,', 'Блог психолога',
-                'Подивитись все', 'Здоров\'я', 'Top story - Ukrainian', 'Наука і технології', ', Тривалість ',
-                'Журнал ВВС', 'Суспільство', 'Вибір редакції', 'Відео', 'Розділи', 'Війна з Росією', 'Історії',
-                'Книга року BBC', 'Економіка', 'Читайте також', 'Огляд преси', 'Політика', 'Наш YouTube', 'Докладно'];
-            if (!excluded.some((s) => text.includes(s))) {
-                console.log(text);
-                const filename = `${dir}/${counter}.txt`;
-                fs.writeFile(filename, text, (err) => {
-                    if (err) throw err;
-                    console.log(`File ${filename} saved`);
+        response.on('end', () => {
+            const $ = cheerio.load(data);
+            $('p:not(.bbc-1e1hq0), span').each((i, elem) => {
+                const text = $(elem).text();
+                const excluded = ['BBC News', '©', 'Подкасти', 'Фотогалереї', 'Поточна сторінка,', 'Блог психолога',
+                    'Подивитись все', 'Здоров\'я', 'Top story - Ukrainian', 'Наука і технології', ', Тривалість ',
+                    'Журнал ВВС', 'Суспільство', 'Вибір редакції', 'Відео', 'Розділи', 'Війна з Росією', 'Історії',
+                    'Книга року BBC', 'Економіка', 'Читайте також', 'Огляд преси', 'Політика', 'Наш YouTube', 'Докладно'];
+                if (!excluded.some((s) => text.includes(s))) {
+                    console.log(text);
+                    const filename = `${dir}/${counter}.txt`;
+                    fs.writeFile(filename, text, (err) => {
+                        if (err) throw err;
+                        console.log(`File ${filename} saved`);
+                    });
+                    counter++;
+                }
+            });
+
+            const server = net.createServer({ timeout: 5000 });
+
+            const PORT = 8080;
+            server.on('error', (error) => {
+                console.error(`Server error happened: ${error.message}`);
+                setTimeout(scrapeData, 5000);
+            });
+
+            server.on('listening', () => {
+                console.log(`Server is listening on port ${PORT}`);
+            });
+
+            server.on('connection', handleConnection);
+
+            server.listen(PORT, () => console.log(`Server is listening on port ${PORT}`));
+
+
+            function handleConnection(socket) {
+                const files = fs.readdirSync(dir).sort((a, b) => {
+                    const numA = parseInt(a);
+                    const numB = parseInt(b);
+                    if (numA < numB) return -1;
+                    if (numA > numB) return 1;
+                    return 0;
                 });
-                counter++;
+                // const files = fs.readdirSync(dir);
+                const response = files.join('\n');
+                if (socket.writable) {
+                    socket.write(`HTTP/1.1 200 OK\r\nContent-Length: ${response.length}\r\n\r\n${response}`);
+                    socket.end();
+                }
+
+                socket.on('error', (error) => {
+                    console.error(`Socket error happened: ${error.message}`);
+                });
+
             }
         });
+    }).on('error', (error) => {
+        console.error(`Error happened: ${error.message}`);
+        setTimeout(scrapeData, 5000);
     });
-}).on('error', (error) => {
-    console.error(`Error happened: ${error.message}`);
-});
+}
+
+scrapeData();
