@@ -1,11 +1,11 @@
 const https = require('https');
 const cheerio = require('cheerio');
 const fs = require('fs');
-const net = require('net');
-const url = 'https://www.bbc.com/ukrainian';
-let counter = 1;
+const http = require("http");
 
+const url = 'https://www.bbc.com/ukrainian';
 const dir = './news';
+
 if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir);
 } else {
@@ -15,6 +15,7 @@ if (!fs.existsSync(dir)) {
 }
 
 function scrapeData() {
+    let counter = 1;
     https.get(url, (response) => {
         let data = '';
 
@@ -41,7 +42,7 @@ function scrapeData() {
                 }
             });
 
-            const server = net.createServer();
+            const server = http.createServer();
             const PORT = 8081;
 
             server.on('connection', handleConnection);
@@ -71,3 +72,4 @@ function scrapeData() {
 }
 
 scrapeData();
+setInterval(scrapeData, 60000);
