@@ -30,17 +30,20 @@ function scrapeData() {
 
         response.on('end', () => {
             const $ = cheerio.load(data);
-            $('p:not(.bbc-1e1hq0), main').each((i, elem) => {
-                const text = $(elem).text();
-                // Ігноруємо перший файл, у якому міститься уся інфа з мейну
-                if (counter > 1) {
-                    const filename = `${dir}/${counter - 1}.txt`;
-                    fs.writeFile(filename, text, { encoding: 'utf-8' }, (err) => {
-                        if (err) throw err;
-                        console.log(`File ${filename} saved`);
-                    });
+            const elements = $('main, a.focusIndicatorDisplayInlineBlock');
+            elements.each((i, elem) => {
+                if (i < elements.length - 4) { // Ігноруємо останні 4 елементи з посиланнями на соц мережі
+                    const text = $(elem).text();
+                    // Ігноруємо перший файл, у якому міститься уся інфа з мейну
+                    if (counter > 1) {
+                        const filename = `${dir}/${counter - 1}.txt`;
+                        fs.writeFile(filename, text, { encoding: 'utf-8' }, (err) => {
+                            if (err) throw err;
+                            console.log(`File ${filename} saved`);
+                        });
+                    }
+                    counter++;
                 }
-                counter++;
             });
 
             console.log("");
